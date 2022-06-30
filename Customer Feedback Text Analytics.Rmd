@@ -1,0 +1,208 @@
+---
+title: "Customer Feedback Text Analytics"
+author: "Santhi Bhanavam"
+date: "15/06/2022"
+output: 
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("tm")
+library("SnowballC")
+library("wordcloud")
+library("RColorBrewer")
+library("syuzhet")
+library("ggplot2")
+```
+
+## Abstract
+As a result of the complexity that surrounds the holistic nature of customer experience feedback, it has become challenging to measure the customer’s perceptions concerning the services provided to them or goods delivered to them. In addition, the technological advancements and the change in techniques through which organizations collect explicit customer feedback has resulted to the increase in generation of large volumes of unstructured textual data and hence making it difficult to analyze and gain useful information from this data manually. Therefore, an approach of text mining has been useful as it helps in the automatic extraction of information from textual data. However, as in terms of accuracy and depth analysis of the customer feedback, text mining technique has performed below expectations as identified in related literature. Therefore, this project has implemented a linguistics-based text mining model that incorporates essential elements of customer experience feedback. The text mining model illustrated a higher accuracy level. The project applies the text analytics technique in R that will help in analyzing the customer feedback from a woman’s E-commerce shop to help in solving problems that the business has been experiencing in understanding how satisfied their customers are from the clothing products they deliver to them. The project will generate information from the textual data from the feedback by customers and help to categorize them as either neutral, positive, or negative.  The results for this project illustrated the satisfaction and loyalty of the customers for the Woman’s Ecommerce clothing business. The implementation of this project will help in handling any size of textual data for text analytics. 
+
+
+
+## Introduction
+
+The technique of collecting and analyzing the customer feedback is essential as it provides the businesses with the ability of gaining insights to their customer’s preferences and act accordingly to any positive and negative reviews. In recent years, there has been the usage of multiple communication channels through which customers utilize in providing feedback concerning any service or product. This has made it tedious for the businesses to have a reliable and efficient process through which they can analyze all that information and gain useful insights. With the technological advancement, the choice of available channels that organizations use to obtain feedback from their customers have expanded. Most of this is collected in the form of unstructured data and this has made it challenging for businesses to uncover any meaning from this data. This brings in the need to have automatic models that help with the textual analytics in the most efficient and effective way as discussed in this project. The project is divided in different sections. These sections include literature review, data, methodology, results, implications, and conclusion. 
+
+## Literature Review
+
+The study by Lin & He (2009) concentrated on the research of customer feedback and text mining that was more on extracting information that was related on sentiments and opinions. The authors indicated that at different levels it is possible to analyze the opinions that are found in the feedback by customers (Li & He, 2009). According to Owens et al. (2009), they described text mining as a technological development that has a potential that is highly commercial. According to a study by Ur-Rahman & Harding (2011), most of the company’s information is mostly found in the text documents. Ludwig et al. (2013) depicted the benefits that are associated with the process of automating the process of analyzing qualitative customer feedback data which is essential in informing business strategy.  
+It has been identified that various techniques have been applied to provide analysis on the customer feedback. However, unlike other studies, this project aim to implement a text analytics model that will be essential in categorizing the feedback to positive, neutral, and negative feedback. 
+
+
+## Theory
+
+
+
+## Data
+
+```{r echo=FALSE}
+feedback <- read.csv("Womens Clothing E-Commerce Reviews.csv", stringsAsFactors =  F)
+head(feedback)
+
+```
+
+Create a corpus for the Review.Text column from the imported dataset.
+```{r}
+feedback_corpus<- Corpus(VectorSource(feedback$Review.Text))
+```
+
+Convert all words in the created corpus to lower case 
+```{r}
+feedback_corpus <- tm_map(feedback_corpus, tolower)
+```
+Remove punctuation from the corpus
+
+```{r}
+feedback_corpus <- tm_map(feedback_corpus, removeNumbers)
+
+```
+
+Remove all stopwords in English from the corpus.
+
+```{r}
+feedback_corpus <- tm_map(feedback_corpus,removeWords , stopwords("english"))
+
+```
+Also, specific stopwords in the Corpus have been removed.
+
+```{r}
+feedback_corpus <- tm_map(feedback_corpus, removeWords,c("also", "get","like", "company", "made", "can", "im", "dress", "just", "i"))
+
+```
+Through the use of SnowballC package, the documents will be stemmed.
+
+
+```{r}
+feedback_corpus <- tm_map(feedback_corpus , stemDocument)
+```
+
+## Methodology
+Once the corpus is cleaned, then we create a Document Term Matrix from the preprocessed corpus.
+
+```{r}
+trm_feedback <- TermDocumentMatrix(feedback_corpus)
+feedback_freq_term <- sort(rowSums(as.matrix(trm_feedback)), decreasing=TRUE)
+
+```
+
+Next, we perform a visualization of the top 20 most frequent words in the corpus. 
+
+```{r}
+barplot(feedback_freq_term[1:20] , col ="steel blue" , las=2)
+
+```
+Create a worldcloud for the 50 most commonly used words through the use of the wordcloud package. 
+
+```{r}
+feedback_freq_word <- data.frame(term = names(feedback_freq_term) , counts = feedback_freq_term)
+
+#Creating wordcloud
+
+wordcloud(feedback_freq_word$term , feedback_freq_word$counts ,max.words=50 , colors ="red" )
+```
+Next, create a comparison wordcloud for positive and negative feedback concerning the products. 
+
+```{r}
+feedback_Pos <- subset(feedback$Review.Text , feedback$Recommended.IND==1)
+feedback_Neg <- subset(feedback$Review.Text , feedback$Recommended.IND==0)
+termsPositive <- paste(feedback_Pos , collapse =" ")
+termsNegative <- paste(feedback_Neg , collapse =" ")
+#Positive and negative feedback combined
+terms_comb <- c(termsPositive, termsNegative)
+#Create a corpus for combined terms
+corpus_comb <- VCorpus(VectorSource(terms_comb))
+```
+
+Create a document Term Matrix for the positive and negative terms combined
+```{r echo=FALSE}
+tdm_comb <- TermDocumentMatrix(
+  # Use corpus_comb
+  corpus_comb, 
+  control = list(
+    # Use TFIDF weighting
+    #weighting = weightTfIdf, 
+    # Remove the punctuation
+    removePunctuation = TRUE,
+    #Remove numbers
+    removeNumbers =TRUE,
+    #Stemming of Documents
+    stemDocument = TRUE,
+    #Convert to lowercase
+    tolower = TRUE ,
+    # Use English stopwords
+    stopwords = stopwords("english")
+      
+   )
+  )
+tdm_comb_m <- as.matrix(tdm_comb)
+colnames(tdm_comb_m) <- c("positive","negative")
+term_comb_freq <- rowSums(tdm_comb_m)
+term_comb_freq <- sort(term_comb_freq,TRUE)
+
+```
+```{r}
+options(warn = -1)
+comparison.cloud(
+  tdm_comb_m, 
+  max.words = 100,
+  colors = c("darkgreen", "darkred")
+)
+```
+Identify words used together through word clustering. 
+```{r}
+trm_feedback2 <- removeSparseTerms(trm_feedback, sparse=0.9)
+p_hc <- hclust(d = dist(trm_feedback2, method = "euclidean"), method = "complete")
+
+# Plot a dendrogram
+plot(p_hc)
+```
+## Results
+
+he barplot illustrated that the mostl commonly used words by the customers in their feedback are love, fit, and size. From the word cloud, it is clear that there are size, look, love, and fit are the most commonly used words in the feedback. 
+
+```{r}
+
+
+
+```
+
+From the comparison wordcloud created, the positive feedback and negative feedback have been depicted. From this worldcloud, it is clear that love, great, perfect and comfortable are the most used positive words from the customer's feedback. On the other hand, fabric, back, like, and wanted are the most used words for negative feedback. 
+
+```{r echo=FALSE}
+options(warn = -1)
+comparison.cloud(
+  tdm_comb_m, 
+  max.words = 100,
+  colors = c("darkgreen", "darkred")
+)
+
+```
+
+Using word clustering, we were able to identify that love and look, bought and perfect, and usual and run are mostly used together in the customers' feedback.
+
+```{r echo=FALSE}
+plot(p_hc)
+```
+
+The analysis also shows that 82% of the customers provide positive feedback and they would recommend the products from the store to other people and only 17% would not recommend. 
+
+```{r echo=FALSE}
+prop.table(table(feedback$Recommended.IND))
+
+
+```
+
+ 
+
+## Conclusion
+This paper has illustrated the process of reading data into R environment, data cleaning, and performing data transformation in R. The paper has also demonstrated how to create worldcloud and identify word association for feedback from customers. The paper has also helped in identifying what might be the reason for positive and negative feedback from customers regarding the products. 
+
+# References
+Ur-Rahman, N., & Harding, J. A. (2012). Textual data mining for industrial knowledge management and text classification: A business oriented approach. Expert Systems with Applications, 39(5), 4729-4739.
+Lin, C., & He, Y. (2009, November). Joint sentiment/topic model for sentiment analysis. In Proceedings of the 18th ACM conference on Information and knowledge management (pp. 375-384).
+Ludwig, S., De Ruyter, K., Friedman, M., Brüggen, E. C., Wetzels, M., & Pfann, G. (2013). More than words: The influence of affective content and linguistic style matches in online reviews on conversion rates. Journal of marketing, 77(1), 87-103.
+Owens, L., Brown, M., Burnes, S., & Schmidt, P. (2009). Text Analytics Takes Business Insight to New Depths. Forrester Report.
+
